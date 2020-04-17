@@ -40,7 +40,7 @@ namespace SweetPotato {
             bool isBITSRequired = false;
             bool flag = false;
             Console.WriteLine(
-                "Modify by Uknow\n" +
+                "Modify by Zero Team Uknow\n"+
                 "SweetPotato by @_EthicalChaos_\n" 
                 );
 
