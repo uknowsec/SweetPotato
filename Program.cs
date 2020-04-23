@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using Mono.Options;
 using System;
 using System.Runtime.InteropServices;
@@ -139,7 +139,9 @@ namespace SweetPotato {
 
                     if (programArgs != null)
                     {
-                        programArgs = "/c " + programArgs;
+                        if (program.Equals("c:\\Windows\\System32\\cmd.exe")) { 
+                            programArgs = "/c " + programArgs; 
+                        }
                         finalArgs = string.Format("\"{0}\" {1}", program, programArgs);
                         Console.WriteLine("[+] Command : {0} ", finalArgs);
                     }
