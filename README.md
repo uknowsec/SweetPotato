@@ -28,6 +28,7 @@
 #### download
 
 [SweetPotato.cna](https://raw.githubusercontent.com/uknowsec/SweetPotato/master/SweetPotato-CS-old/bin/Release/SweetPotato.cna)
+
 [SweetPotato.exe](https://raw.githubusercontent.com/uknowsec/SweetPotato/master/SweetPotato-CS-old/bin/Release/SweetPotato.exe)
 
 #### img
