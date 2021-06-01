@@ -23,7 +23,7 @@
 
 ![webshell-new](img/webshell-old.png)
 
-### SweetPotato-Webshell-old
+### SweetPotato-CS-old
 
 #### download
 
