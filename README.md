@@ -21,7 +21,7 @@
 
 #### img
 
-![webshell-new](img/webshell-old.png)
+![webshell-old](img/webshell-old.png)
 
 ### SweetPotato-CS-old
 
@@ -35,13 +35,13 @@
 
 - CNA
 
-![webshell-new](img/cs-old.png)
+![cs-old](img/cs-old.png)
 
 
 
 - CLI
 
-![webshell-new](img/cs-old2.png)
+![cs-old2](img/cs-old2.png)
 
 ### Reference
 
