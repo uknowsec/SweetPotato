@@ -2,7 +2,7 @@
 
 #### download
 
-[SweetPotato](https://raw.githubusercontent.com/uknowsec/SweetPotato/master/SweetPotato-Webshell-new/bin/Release/SweetPotato.exe)
+[SweetPotato.exe](https://raw.githubusercontent.com/uknowsec/SweetPotato/master/SweetPotato-Webshell-new/bin/Release/SweetPotato.exe)
 
 
 #### img
@@ -33,8 +33,15 @@
 
 #### img
 
+- CNA
+
 ![webshell-new](img/cs-old.png)
 
+
+
+- CLI
+
+![webshell-new](img/cs-old2.png)
 
 ### Reference
 
